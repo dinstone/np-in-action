@@ -10,26 +10,10 @@ import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class BioProcessor {
-
-    public class NamedThreadFactory implements ThreadFactory {
-
-        private final AtomicInteger index = new AtomicInteger();
-
-        private String prex;
-
-        public NamedThreadFactory(String prex) {
-            this.prex = prex;
-        }
-
-        public Thread newThread(Runnable r) {
-            return new Thread(r, prex + index.incrementAndGet());
-        }
-
-    }
 
     public static final int MAX_INPUT = 1024;
 
@@ -41,69 +25,14 @@ public class BioProcessor {
 
     private int maxClientCount;
 
-    public class Processor implements Runnable {
-
-        private Socket socket;
-
-        private String session;
-
-        public Processor(Socket socket) {
-            this.socket = socket;
-            this.session = link(socket);
-        }
-
-        public void run() {
-            try {
-                System.out.println("socket open with " + session);
-                Handler handler = handlerInitialer.initial(socket);
-
-                InputStream inputStream = socket.getInputStream();
-                OutputStream outputStream = socket.getOutputStream();
-
-                int received = 0;
-                byte[] readBuffer = new byte[MAX_INPUT];
-                // Receive until client closes connection, indicated by -1
-                while (!Thread.interrupted() && (received = read(inputStream, readBuffer)) != -1) {
-                    if (received == 0) {
-                        continue;
-                    }
-
-                    Message message = handler.handle(new Message(readBuffer, received));
-                    if (message != null) {
-                        outputStream.write(message.getBuffer(), message.getOffset(), message.getLength());
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-                counter.decrementAndGet();
-            }
-            System.out.println("socket closed with " + session);
-        }
-
-        private int read(InputStream inputStream, byte[] readBuffer) throws IOException {
-            try {
-                return inputStream.read(readBuffer);
-            } catch (SocketTimeoutException e) {
-            }
-            return 0;
-        }
-
-    }
-
-    public BioProcessor(int processCount, int maxClientCount) {
-        if (processCount > 0) {
-            executorService = Executors.newFixedThreadPool(processCount, new NamedThreadFactory("bio-processor-"));
-        } else {
-            executorService = Executors.newCachedThreadPool(new NamedThreadFactory("bio-processor-"));
+    public BioProcessor(int maxClientCount) {
+        if (maxClientCount < 0) {
+            throw new IllegalArgumentException("maxClientCount less than 0");
         }
 
         this.maxClientCount = maxClientCount;
+
+        this.executorService = Executors.newCachedThreadPool(new NamedThreadFactory("bio-processor-"));
     }
 
     private static String link(Socket socket) {
@@ -122,17 +51,77 @@ public class BioProcessor {
             clientSocket.close();
         } else {
             counter.incrementAndGet();
-            clientSocket.setSoTimeout(1000);
             executorService.execute(new Processor(clientSocket));
         }
     }
 
     public void destroy() {
-        executorService.shutdownNow();
+        try {
+            executorService.shutdownNow();
+            executorService.awaitTermination(Integer.MAX_VALUE, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            // ignore
+        }
     }
 
     public void handlerInitialer(HandlerInitialer handlerInitialer) {
         this.handlerInitialer = handlerInitialer;
+    }
+
+    private class Processor implements Runnable {
+
+        private Socket clientSocket;
+
+        private String clientSession;
+
+        public Processor(Socket clientSocket) {
+            this.clientSocket = clientSocket;
+            this.clientSession = link(clientSocket);
+        }
+
+        public void run() {
+            try {
+                clientSocket.setSoTimeout(1000);
+                System.out.println("socket open with " + clientSession);
+                Handler handler = handlerInitialer.initial(clientSocket);
+
+                InputStream inputStream = clientSocket.getInputStream();
+                OutputStream outputStream = clientSocket.getOutputStream();
+
+                int received = 0;
+                byte[] readBuffer = new byte[MAX_INPUT];
+                // Receive until client closes connection, indicated by -1
+                while (!Thread.interrupted() && (received = read(inputStream, readBuffer)) != -1) {
+                    if (received == 0) {
+                        continue;
+                    }
+
+                    Message message = handler.handle(new Message(readBuffer, received));
+                    if (message != null) {
+                        outputStream.write(message.getBuffer(), message.getOffset(), message.getLength());
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    clientSocket.close();
+                } catch (IOException e) {
+                    // ignore
+                }
+                counter.decrementAndGet();
+            }
+            System.out.println("socket closed with " + clientSession);
+        }
+
+        private int read(InputStream inputStream, byte[] readBuffer) throws IOException {
+            try {
+                return inputStream.read(readBuffer);
+            } catch (SocketTimeoutException e) {
+            }
+            return 0;
+        }
+
     }
 
 }

@@ -29,7 +29,7 @@ public class OioEchoServer {
 
     public void start() throws Exception {
         bossGroup = new OioEventLoopGroup(1); // (1)
-        workGroup = new OioEventLoopGroup();
+        workGroup = new OioEventLoopGroup(2);
         ServerBootstrap boot = new ServerBootstrap(); // (2)
         boot.group(bossGroup, workGroup).channel(OioServerSocketChannel.class) // (3)
             .childHandler(new ChannelInitializer<SocketChannel>() { // (4)

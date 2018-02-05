@@ -10,18 +10,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class BioAccepter {
 
-    private BioProcessor processor;
-
     private AtomicReference<Thread> accepterRef = new AtomicReference<Thread>();
+
+    private BioProcessor processor;
 
     private HandlerInitialer handlerInitialer;
 
     public BioAccepter() {
-        this(0, Integer.MAX_VALUE);
+        this(Integer.MAX_VALUE);
     }
 
-    public BioAccepter(int proccessCount, int maxClientCount) {
-        this.processor = new BioProcessor(proccessCount, maxClientCount);
+    public BioAccepter(int maxClientCount) {
+        this.processor = new BioProcessor(maxClientCount);
     }
 
     public BioAccepter handlerInitialer(HandlerInitialer handlerInitialer) {
@@ -29,15 +29,17 @@ public class BioAccepter {
         return this;
     }
 
-    public void bind(int port) {
+    public BioAccepter bind(int port) {
         if (port < 0) {
             throw new IllegalArgumentException("port less than 0");
         }
 
         bind(new InetSocketAddress(port));
+
+        return this;
     }
 
-    public void bind(InetSocketAddress address) {
+    public BioAccepter bind(InetSocketAddress address) {
         if (address == null) {
             throw new IllegalArgumentException("address is null");
         }
@@ -50,10 +52,11 @@ public class BioAccepter {
         if (accepterRef.compareAndSet(null, new Thread(new Accepter(address), "bio-accepter-" + address.getPort()))) {
             accepterRef.get().start();
         }
+
+        return this;
     }
 
-    public void destroy() {
-        processor.destroy();
+    public BioAccepter destroy() {
 
         Thread at = accepterRef.getAndSet(null);
         if (at != null) {
@@ -64,6 +67,10 @@ public class BioAccepter {
                 e.printStackTrace();
             }
         }
+
+        processor.destroy();
+
+        return this;
     }
 
     public class Accepter implements Runnable {
