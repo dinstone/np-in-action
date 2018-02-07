@@ -40,7 +40,7 @@ public class OioEchoServer {
                     ch.pipeline().addLast(new LineBasedFrameDecoder(1024));
                     ch.pipeline().addLast(new EchoServerHandler());
                 }
-            }).option(ChannelOption.SO_BACKLOG, 128) // (5)
+            }).option(ChannelOption.SO_REUSEADDR, true).option(ChannelOption.SO_BACKLOG, 128) // (5)
             .childOption(ChannelOption.SO_KEEPALIVE, true); // (6)
 
         // Bind and start to accept incoming connections.

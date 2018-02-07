@@ -86,8 +86,10 @@ public class BioAccepter {
             try {
                 System.out.println("server accept thread will work on " + address);
                 // create server socket and bind port
-                serverSocket = new ServerSocket(address.getPort(), 10, address.getAddress());
+                serverSocket = new ServerSocket();
+                serverSocket.setReuseAddress(true);
                 serverSocket.setSoTimeout(1000);
+                serverSocket.bind(address, 10);
 
                 while (!Thread.interrupted()) {
                     Socket clientSocket = accept(serverSocket);

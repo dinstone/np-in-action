@@ -144,6 +144,7 @@ public class NioAcceptor {
         for (InetSocketAddress address = bindQueue.poll(); address != null; address = bindQueue.poll()) {
             // create listening socket channel and register selector
             ServerSocketChannel ssc = ServerSocketChannel.open();
+            ssc.socket().setReuseAddress(true);
             ssc.socket().bind(address, 500);
             ssc.configureBlocking(false);
 
