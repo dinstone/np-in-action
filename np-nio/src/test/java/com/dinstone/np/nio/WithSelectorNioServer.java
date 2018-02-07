@@ -10,7 +10,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 
-public class NioServer {
+public class WithSelectorNioServer {
 
     private static class EchoHandler {
 
