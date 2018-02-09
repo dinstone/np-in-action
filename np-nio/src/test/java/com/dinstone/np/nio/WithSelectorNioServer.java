@@ -60,9 +60,11 @@ public class WithSelectorNioServer {
         Selector selector = Selector.open();
 
         ServerSocketChannel ssc = ServerSocketChannel.open();
-        ssc.bind(new InetSocketAddress(2222));
         ssc.configureBlocking(false);
+
         ssc.register(selector, SelectionKey.OP_ACCEPT);
+
+        ssc.bind(new InetSocketAddress(2222));
 
         EchoHandler handler = new EchoHandler();
 

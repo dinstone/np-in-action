@@ -13,32 +13,32 @@ public class NonSelectorNioServer {
 
     private static class Channel {
 
-        private SocketChannel channel;
-
-        private EchoHandler handler;
-
-        public Channel(SocketChannel socketChannel, EchoHandler handler) {
-            this.channel = socketChannel;
-            this.handler = handler;
-        }
-
-        public EchoHandler getHandler() {
-            return handler;
-        }
-
-    }
-
-    private static class EchoHandler {
-
         private Queue<ByteBuffer> wq = new ConcurrentLinkedQueue<ByteBuffer>();
 
         private SocketChannel channel;
 
-        public EchoHandler(SocketChannel socketChannel) {
-            this.channel = socketChannel;
+        private EchoHandler handler;
+
+        private boolean inputShutdown;
+
+        private boolean outputShutdown;
+
+        public Channel(SocketChannel channel, EchoHandler handler) {
+            this.channel = channel;
+            this.handler = handler;
         }
 
-        public void write() throws IOException {
+        public void handle() throws IOException {
+            if (!inputShutdown) {
+                read();
+            }
+
+            if (!outputShutdown) {
+                write();
+            }
+        }
+
+        private void write() throws IOException {
             while (true) {
                 ByteBuffer wb = wq.peek();
                 if (wb == null) {
@@ -53,41 +53,65 @@ public class NonSelectorNioServer {
                     wq.poll();
                 }
             }
+
+            if (inputShutdown && wq.isEmpty()) {
+                outputShutdown = true;
+            }
         }
 
-        public void read() throws IOException {
+        private void read() throws IOException {
             ByteBuffer buf = ByteBuffer.allocate(512);
             long bytesRead = channel.read(buf);
             if (bytesRead == -1) {
                 channel.shutdownInput();
-                throw new IOException("channel is closed");
+
+                inputShutdown = true;
             } else if (bytesRead > 0) {
                 buf.flip();
                 System.out.println(buf.asCharBuffer().toString());
 
-                wq.add(buf);
+                handler.handle(this, buf);
             }
+        }
+
+        public void write(ByteBuffer buf) {
+            wq.add(buf);
+        }
+
+        public boolean isShutdown() {
+            return inputShutdown && outputShutdown;
+        }
+
+    }
+
+    private static class EchoHandler {
+
+        public void handle(Channel channel, ByteBuffer buf) {
+            channel.write(buf);
         }
 
     }
 
     public static void main(String[] args) throws IOException {
         ServerSocketChannel ssc = ServerSocketChannel.open();
-        ssc.bind(new InetSocketAddress(2222));
         ssc.configureBlocking(false);
+        ssc.bind(new InetSocketAddress(2222));
 
         Queue<Channel> channels = new ConcurrentLinkedQueue<Channel>();
 
         while (true) {
             for (Channel channel : channels) {
-                channel.getHandler().write();
-                channel.getHandler().read();
+                channel.handle();
+
+                if (channel.isShutdown()) {
+                    channels.remove(channel);
+                }
             }
 
             SocketChannel socketChannel = ssc.accept();
             if (socketChannel != null) {
                 socketChannel.configureBlocking(false);
-                EchoHandler handler = new EchoHandler(socketChannel);
+                EchoHandler handler = new EchoHandler();
                 channels.add(new Channel(socketChannel, handler));
             }
 

@@ -145,10 +145,11 @@ public class NioAcceptor {
             // create listening socket channel and register selector
             ServerSocketChannel ssc = ServerSocketChannel.open();
             ssc.socket().setReuseAddress(true);
-            ssc.socket().bind(address, 500);
             ssc.configureBlocking(false);
 
             ssc.register(selector, SelectionKey.OP_ACCEPT);
+
+            ssc.socket().bind(address, 500);
         }
     }
 
