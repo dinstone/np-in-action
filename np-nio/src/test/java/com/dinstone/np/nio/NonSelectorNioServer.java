@@ -3,13 +3,19 @@ package com.dinstone.np.nio;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import com.dinstone.loghub.Logger;
+import com.dinstone.loghub.LoggerFactory;
+
 public class NonSelectorNioServer {
+
+    private static final Logger LOG = LoggerFactory.getLogger(NioClientTest.class);
 
     private static class Channel {
 
@@ -60,7 +66,7 @@ public class NonSelectorNioServer {
         }
 
         private void read() throws IOException {
-            ByteBuffer buf = ByteBuffer.allocate(512);
+            ByteBuffer buf = ByteBuffer.allocate(4 * 1024);
             long bytesRead = channel.read(buf);
             if (bytesRead == -1) {
                 channel.shutdownInput();
@@ -68,7 +74,7 @@ public class NonSelectorNioServer {
                 inputShutdown = true;
             } else if (bytesRead > 0) {
                 buf.flip();
-                System.out.println(buf.asCharBuffer().toString());
+                System.out.println(bytesRead);
 
                 handler.handle(this, buf);
             }
@@ -95,7 +101,7 @@ public class NonSelectorNioServer {
     public static void main(String[] args) throws IOException {
         ServerSocketChannel ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);
-        ssc.bind(new InetSocketAddress(2222));
+        ssc.bind(new InetSocketAddress("127.0.0.1", 2222));
 
         Queue<Channel> channels = new ConcurrentLinkedQueue<Channel>();
 
@@ -111,6 +117,11 @@ public class NonSelectorNioServer {
             SocketChannel socketChannel = ssc.accept();
             if (socketChannel != null) {
                 socketChannel.configureBlocking(false);
+                Socket s = socketChannel.socket();
+                s.setReceiveBufferSize(500);
+                LOG.info("SendBufferSize = {}, ReceiveBufferSize = {}", s.getSendBufferSize(),
+                        s.getReceiveBufferSize());
+
                 EchoHandler handler = new EchoHandler();
                 channels.add(new Channel(socketChannel, handler));
             }
