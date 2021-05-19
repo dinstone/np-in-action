@@ -34,7 +34,7 @@ public class Promise<T> implements Future<T> {
             state = 3;
             done = true;
 
-            return false;
+            return true;
         } finally {
             lock.unlock();
         }
@@ -43,10 +43,7 @@ public class Promise<T> implements Future<T> {
     public boolean isCancelled() {
         lock.lock();
         try {
-            if (state == 3) {
-                return true;
-            }
-            return false;
+            return state == 3;
         } finally {
             lock.unlock();
         }

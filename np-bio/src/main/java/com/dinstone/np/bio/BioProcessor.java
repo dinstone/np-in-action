@@ -82,7 +82,7 @@ public class BioProcessor {
         public void run() {
             try {
                 clientSocket.setReuseAddress(true);
-                clientSocket.setSoTimeout(1000);
+                clientSocket.setSoTimeout(100);
                 System.out.println("socket open with " + clientSession);
 
                 Handler handler = handlerInitialer.initial(clientSocket);
