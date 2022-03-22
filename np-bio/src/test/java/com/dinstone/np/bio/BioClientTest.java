@@ -1,4 +1,4 @@
-package com.dinstone.np.bio.demo;
+package com.dinstone.np.bio;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -8,12 +8,12 @@ import java.net.SocketTimeoutException;
 import com.dinstone.loghub.Logger;
 import com.dinstone.loghub.LoggerFactory;
 
-public class BioClient {
+public class BioClientTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(BioClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BioClientTest.class);
 
     public static void main(String[] args) throws Exception {
-        Socket clientSocket = new Socket("127.0.0.1", 8484);
+        Socket clientSocket = new Socket("www.baidu.com", 80);
         // clientSocket.setSoTimeout(100);
 
         InputStream inputStream = clientSocket.getInputStream();
